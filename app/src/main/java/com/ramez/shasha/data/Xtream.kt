@@ -45,60 +45,72 @@ class Xtream(val account: Account) {
         return Http.get(url.toString())
     }
 
-    private fun array(text: String): JSONArray {
-        val t = text.trim()
-        return if (t.startsWith("[")) JSONArray(t) else JSONArray()
-    }
-
     suspend fun login(): Boolean = withContext(Dispatchers.IO) {
         val o = JSONObject(api())
         val info = o.obj("user_info") ?: return@withContext false
         info.i("auth") == 1 || info.s("status").equals("Active", ignoreCase = true)
     }
 
-    suspend fun liveCategories() = categories("get_live_categories")
-    suspend fun movieCategories() = categories("get_vod_categories")
-    suspend fun seriesCategories() = categories("get_series_categories")
+    /** Raw JSON for a library list; kept as text so it can be cached on disk. */
+    suspend fun raw(action: String): String = withContext(Dispatchers.IO) { api(action) }
 
-    private suspend fun categories(action: String): List<Category> = withContext(Dispatchers.IO) {
-        array(api(action)).objects().map { Category(it.s("category_id"), it.s("category_name")) }
-    }
+    suspend fun liveCategories() = parseCategories(raw(ACTION_LIVE_CATS))
+    suspend fun movieCategories() = parseCategories(raw(ACTION_MOVIE_CATS))
+    suspend fun seriesCategories() = parseCategories(raw(ACTION_SERIES_CATS))
+    suspend fun liveChannels() = parseLive(raw(ACTION_LIVE))
+    suspend fun movies() = parseMovies(raw(ACTION_MOVIES))
+    suspend fun series() = parseSeries(raw(ACTION_SERIES))
 
-    suspend fun liveChannels(): List<LiveChannel> = withContext(Dispatchers.IO) {
-        array(api("get_live_streams")).objects().map {
+    companion object {
+        const val ACTION_LIVE_CATS = "get_live_categories"
+        const val ACTION_MOVIE_CATS = "get_vod_categories"
+        const val ACTION_SERIES_CATS = "get_series_categories"
+        const val ACTION_LIVE = "get_live_streams"
+        const val ACTION_MOVIES = "get_vod_streams"
+        const val ACTION_SERIES = "get_series"
+        val ALL = listOf(ACTION_LIVE_CATS, ACTION_LIVE, ACTION_MOVIE_CATS, ACTION_MOVIES, ACTION_SERIES_CATS, ACTION_SERIES)
+
+        private fun array(text: String): JSONArray {
+            val t = text.trim()
+            return if (t.startsWith("[")) JSONArray(t) else JSONArray()
+        }
+
+        fun parseCategories(text: String): List<Category> =
+            array(text).objects().map { Category(it.s("category_id"), Names.category(it.s("category_name"))) }
+
+        fun parseLive(text: String): List<LiveChannel> = array(text).objects().map {
             LiveChannel(
                 id = it.i("stream_id"),
                 num = it.i("num"),
-                name = it.s("name"),
+                name = Names.channel(it.s("name")),
                 icon = it.s("stream_icon"),
                 categoryId = it.s("category_id"),
             )
         }
-    }
 
-    suspend fun movies(): List<Movie> = withContext(Dispatchers.IO) {
-        array(api("get_vod_streams")).objects().map {
+        fun parseMovies(text: String): List<Movie> = array(text).objects().map {
+            val raw = it.s("name")
             Movie(
                 id = it.i("stream_id"),
-                name = it.s("name"),
+                name = Names.title(raw),
                 poster = it.s("stream_icon"),
                 categoryId = it.s("category_id"),
                 rating = it.s("rating"),
                 added = it.l("added"),
                 ext = it.s("container_extension").ifEmpty { "mp4" },
+                year = it.s("year").take(4).ifEmpty { Names.yearOf(raw) },
             )
         }
-    }
 
-    suspend fun series(): List<Series> = withContext(Dispatchers.IO) {
-        array(api("get_series")).objects().map {
+        fun parseSeries(text: String): List<Series> = array(text).objects().map {
+            val raw = it.s("name")
             Series(
                 id = it.i("series_id"),
-                name = it.s("name"),
+                name = Names.title(raw),
                 cover = it.s("cover"),
                 categoryId = it.s("category_id"),
                 plot = it.s("plot"),
-                year = it.s("year").ifEmpty { it.s("releaseDate").take(4) },
+                year = it.s("year").ifEmpty { it.s("releaseDate").take(4) }.ifEmpty { Names.yearOf(raw) },
                 lastModified = it.l("last_modified"),
             )
         }
@@ -133,7 +145,7 @@ class Xtream(val account: Account) {
                 val ei = e.obj("info") ?: JSONObject()
                 Episode(
                     id = e.s("id"),
-                    title = e.s("title"),
+                    title = Names.episode(e.s("title"), series.name, e.i("episode_num")),
                     season = e.i("season").takeIf { it > 0 } ?: seasonKey,
                     number = e.i("episode_num"),
                     ext = e.s("container_extension").ifEmpty { "mp4" },

@@ -95,7 +95,7 @@ fun AppState.moviePlayRequest(m: Movie, info: MovieInfo? = null): PlayRequest {
         image = m.poster,
         tmdbId = info?.tmdbId ?: "",
         searchName = TitleCleaner.clean(m.name),
-        year = info?.year?.ifEmpty { null } ?: TitleCleaner.year(m.name),
+        year = info?.year?.ifEmpty { null } ?: m.year,
     )
 }
 

@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        state = AppState(applicationContext)
+        state = AppHolder.state ?: AppState(applicationContext).also { AppHolder.state = it }
         // TVs report a "density" that makes a 1080p screen only 960 units wide, which
         // doubled every size. Lay out on a fixed 1920-wide canvas instead, so the app
         // looks the same on 720p, 1080p and 4K screens.
@@ -42,8 +42,9 @@ class MainActivity : ComponentActivity() {
 fun App(state: AppState, onExit: () -> Unit) {
     val screen = state.current
 
+    // Opens from the saved copy instantly; refreshes in the background when it's stale.
     LaunchedEffect(state.xtream) {
-        if (state.xtream != null && state.movies.isEmpty() && state.liveChannels.isEmpty()) state.loadLibrary()
+        if (state.xtream != null) state.loadLibrary()
     }
 
     BackHandler(enabled = state.stack.size > 1) { state.pop() }

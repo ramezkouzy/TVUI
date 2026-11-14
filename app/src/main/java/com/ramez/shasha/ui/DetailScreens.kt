@@ -66,7 +66,7 @@ fun MovieDetailScreen(state: AppState, movie: Movie) {
         ) {
             T(movie.name, size = 50.sp, weight = FontWeight.Bold, maxLines = 3, lineHeight = 56.sp)
             val meta = listOfNotNull(
-                i?.year?.ifBlank { null } ?: TitleCleaner.year(movie.name).ifBlank { null },
+                i?.year?.ifBlank { null } ?: movie.year.ifBlank { null },
                 i?.genre?.ifBlank { null },
                 i?.duration?.ifBlank { null },
                 movie.rating.takeIf { it.isNotBlank() && it != "0" }?.let { "★ $it" },

@@ -6,8 +6,17 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.ramez.shasha.data.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+
+private const val REFRESH_AFTER_MS = 6 * 60 * 60 * 1000L
+
+/** Survives the screen being rebuilt when you leave the app and come back. */
+object AppHolder {
+    var state: AppState? = null
+}
 
 sealed class Screen {
     data object Login : Screen()
@@ -23,6 +32,7 @@ class AppState(context: Context) {
     val prefs = Prefs(context)
     val subtitleCache = SubtitleCache(context)
     val openSubtitles = OpenSubtitles(prefs)
+    val libraryCache = LibraryCache(context)
 
     var xtream by mutableStateOf(prefs.account?.let { Xtream(it) })
         private set
@@ -33,6 +43,7 @@ class AppState(context: Context) {
     var tab by mutableStateOf(Tab.Movies)
 
     var loading by mutableStateOf(false)
+    var refreshing by mutableStateOf(false)
     var loadError by mutableStateOf<String?>(null)
 
     var liveCategories by mutableStateOf<List<Category>>(emptyList())
@@ -69,35 +80,82 @@ class AppState(context: Context) {
     fun signOut() {
         prefs.account = null
         xtream = null
+        libraryCache.clearAll()
         liveChannels = emptyList(); movies = emptyList(); series = emptyList()
         stack.clear(); stack.add(Screen.Login)
     }
 
-    suspend fun loadLibrary() {
+    /**
+     * Shows the saved copy immediately, then refreshes from the provider in the
+     * background when the copy is older than a few hours (or when forced).
+     */
+    suspend fun loadLibrary(force: Boolean = false) {
         val x = xtream ?: return
-        if (loading) return
-        loading = true
+        val account = x.account
+        if (loading || refreshing) return
+
+        if (movies.isEmpty() && liveChannels.isEmpty() && series.isEmpty()) {
+            loading = true
+            val cached = withContext(Dispatchers.IO) {
+                runCatching { parseAll { action -> libraryCache.read(account, action) } }.getOrNull()
+            }
+            if (cached != null) apply(cached)
+            loading = false
+        }
+
+        val age = System.currentTimeMillis() - libraryCache.updatedAt(account)
+        val hasData = movies.isNotEmpty() || liveChannels.isNotEmpty() || series.isNotEmpty()
+        if (!force && hasData && age < REFRESH_AFTER_MS) return
+
+        if (hasData) refreshing = true else loading = true
         loadError = null
         try {
-            coroutineScope {
-                val lc = async { runCatching { x.liveCategories() }.getOrDefault(emptyList()) }
-                val ls = async { runCatching { x.liveChannels() }.getOrDefault(emptyList()) }
-                val mc = async { runCatching { x.movieCategories() }.getOrDefault(emptyList()) }
-                val ms = async { runCatching { x.movies() }.getOrDefault(emptyList()) }
-                val sc = async { runCatching { x.seriesCategories() }.getOrDefault(emptyList()) }
-                val ss = async { runCatching { x.series() }.getOrDefault(emptyList()) }
-                liveCategories = lc.await(); liveChannels = ls.await()
-                movieCategories = mc.await(); movies = ms.await()
-                seriesCategories = sc.await(); series = ss.await()
+            val fresh = withContext(Dispatchers.IO) {
+                coroutineScope {
+                    Xtream.ALL.map { action -> action to async { runCatching { x.raw(action) }.getOrNull() } }
+                        .associate { (action, job) -> action to job.await() }
+                }
             }
-            if (liveChannels.isEmpty() && movies.isEmpty() && series.isEmpty()) {
+            // Only keep lists that actually came back, so a hiccup never wipes the library.
+            withContext(Dispatchers.IO) {
+                fresh.forEach { (action, text) ->
+                    if (text != null && text.trim().startsWith("[") && text.trim().length > 2) libraryCache.write(account, action, text)
+                }
+            }
+            val parsed = withContext(Dispatchers.IO) {
+                parseAll { action -> libraryCache.read(account, action) }
+            }
+            apply(parsed)
+            if (movies.isEmpty() && liveChannels.isEmpty() && series.isEmpty()) {
                 loadError = "Nothing came back from the server. Try again, or check your account in Settings."
             }
         } catch (e: Exception) {
-            loadError = e.message ?: "Couldn't load your channels"
+            if (!hasData) loadError = e.message ?: "Couldn't load your channels"
         } finally {
             loading = false
+            refreshing = false
         }
+    }
+
+    private class Library(
+        val liveCats: List<Category>, val live: List<LiveChannel>,
+        val movieCats: List<Category>, val movies: List<Movie>,
+        val seriesCats: List<Category>, val series: List<Series>,
+    )
+
+    private fun parseAll(read: (String) -> String?): Library {
+        fun <T> p(action: String, f: (String) -> List<T>): List<T> = read(action)?.let { runCatching { f(it) }.getOrNull() } ?: emptyList()
+        return Library(
+            p(Xtream.ACTION_LIVE_CATS, { Xtream.parseCategories(it) }), p(Xtream.ACTION_LIVE, { Xtream.parseLive(it) }),
+            p(Xtream.ACTION_MOVIE_CATS, { Xtream.parseCategories(it) }), p(Xtream.ACTION_MOVIES, { Xtream.parseMovies(it) }),
+            p(Xtream.ACTION_SERIES_CATS, { Xtream.parseCategories(it) }), p(Xtream.ACTION_SERIES, { Xtream.parseSeries(it) }),
+        )
+    }
+
+    private fun apply(l: Library) {
+        if (l.live.isNotEmpty()) { liveCategories = l.liveCats; liveChannels = l.live }
+        if (l.movies.isNotEmpty()) { movieCategories = l.movieCats; movies = l.movies }
+        if (l.series.isNotEmpty()) { seriesCategories = l.seriesCats; series = l.series }
     }
 
     fun playLive(channels: List<LiveChannel>, index: Int) {

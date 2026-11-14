@@ -28,6 +28,7 @@ data class Movie(
     val rating: String,
     val added: Long,
     val ext: String,
+    val year: String = "",
 )
 
 data class Series(

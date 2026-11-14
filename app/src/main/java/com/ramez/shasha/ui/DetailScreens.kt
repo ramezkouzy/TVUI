@@ -12,6 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,6 +89,7 @@ fun MovieDetailScreen(state: AppState, movie: Movie) {
                 } else {
                     AppButton("Play", onClick = { play(false) }, primary = true, icon = Icons.Default.PlayArrow, modifier = Modifier.focusRequester(playFocus))
                 }
+                FavoriteButton(state, key)
             }
 
             val s = subStatus
@@ -135,6 +138,7 @@ fun SeriesDetailScreen(state: AppState, series: Series) {
             if (meta.isNotEmpty()) T(meta.joinToString("  ·  "), size = 19.sp, color = C.text2)
             val plot = i?.plot ?: series.plot
             if (plot.isNotBlank()) T(plot, size = 19.sp, color = C.text2, maxLines = 3, lineHeight = 28.sp)
+            FavoriteButton(state, "series:${series.id}")
 
             when {
                 error != null -> Message("Couldn't load episodes", error!!)
@@ -188,4 +192,14 @@ fun SeriesDetailScreen(state: AppState, series: Series) {
             if (img.isNotBlank()) AsyncImage(model = img, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
     }
+}
+
+@Composable
+fun FavoriteButton(state: AppState, key: String) {
+    val fav = state.isFavorite(key)
+    AppButton(
+        if (fav) "In My list" else "Add to My list",
+        onClick = { state.toggleFavorite(key) },
+        icon = if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+    )
 }

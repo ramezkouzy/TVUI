@@ -56,6 +56,15 @@ class AppState(context: Context) {
     /** Channels the player can flip through with up/down. */
     var livePlaylist by mutableStateOf<List<LiveChannel>>(emptyList())
 
+    var favorites by mutableStateOf(prefs.favorites)
+        private set
+
+    fun isFavorite(key: String) = key in favorites
+    fun toggleFavorite(key: String) {
+        favorites = if (key in favorites) favorites - key else favorites + key
+        prefs.favorites = favorites
+    }
+
     /** Bumped whenever resume positions change so rows refresh. */
     var resumeVersion by mutableStateOf(0)
 

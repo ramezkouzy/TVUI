@@ -39,6 +39,11 @@ class Prefs(context: Context) {
         get() = p.getString("os_token", "") ?: ""
         set(v) = p.edit().putString("os_token", v).apply()
 
+    /** Keys like "movie:12", "series:7", "live:301". */
+    var favorites: Set<String>
+        get() = p.getStringSet("favs", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("favs", HashSet(v)).apply()
+
     /** 0 = small, 1 = medium, 2 = large */
     var subtitleSize: Int
         get() = p.getInt("sub_size", 1)

@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +35,8 @@ import java.util.Locale
 
 // ---------------- Live TV ----------------
 
+private const val FAV = "__favorites__"
+
 @Composable
 fun LiveTab(state: AppState) {
     val channels = state.liveChannels
@@ -40,10 +44,16 @@ fun LiveTab(state: AppState) {
 
     val cats = remember(channels, state.liveCategories) {
         val used = channels.map { it.categoryId }.toSet()
-        listOf(Category("", "All")) + state.liveCategories.filter { it.id in used }
+        listOf(Category("", "All"), Category(FAV, "Favorites")) + state.liveCategories.filter { it.id in used }
     }
     var cat by remember { mutableStateOf("") }
-    val shown = remember(cat, channels) { if (cat.isEmpty()) channels else channels.filter { it.categoryId == cat } }
+    val shown = remember(cat, channels, state.favorites) {
+        when (cat) {
+            "" -> channels
+            FAV -> channels.filter { state.isFavorite("live:${it.id}") }
+            else -> channels.filter { it.categoryId == cat }
+        }
+    }
     var focused by remember { mutableStateOf<LiveChannel?>(null) }
     var epg by remember { mutableStateOf<List<EpgItem>>(emptyList()) }
     val first = remember { FocusRequester() }
@@ -69,6 +79,7 @@ fun LiveTab(state: AppState) {
                 ListRow(
                     selected = false,
                     onClick = { state.playLive(shown, i) },
+                    onLongClick = { state.toggleFavorite("live:${c.id}") },
                     modifier = Modifier.onFocusGained { focused = c }.then(if (i == 0) Modifier.focusRequester(first) else Modifier),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -76,12 +87,17 @@ fun LiveTab(state: AppState) {
                             if (c.icon.isNotBlank()) AsyncImage(model = c.icon, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(3.dp))
                         }
                         T(if (c.num > 0) "${c.num}" else "", size = 16.sp, color = C.muted, modifier = Modifier.width(44.dp))
-                        T(c.name, size = 19.sp, weight = FontWeight.Medium, maxLines = 1)
+                        T(c.name, size = 19.sp, weight = FontWeight.Medium, maxLines = 1, modifier = Modifier.weight(1f))
+                        if (state.isFavorite("live:${c.id}")) Icon(Icons.Default.Favorite, contentDescription = "Favorite", modifier = Modifier.size(20.dp))
                     }
                 }
             }
         }
         Column(Modifier.weight(1f).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (cat == FAV && shown.isEmpty()) {
+                Message("No favorite channels yet", "Highlight a channel and hold OK to add it here.")
+                return@Column
+            }
             val c = focused ?: shown.firstOrNull()
             if (c != null && c.icon.isNotBlank()) {
                 Box(Modifier.size(160.dp, 100.dp).clip(RoundedCornerShape(16.dp)).background(C.surface), contentAlignment = Alignment.Center) {
@@ -99,6 +115,8 @@ fun LiveTab(state: AppState) {
                     T("Up next · ${hm(next.start)}", size = 17.sp, color = C.muted)
                     T(next.title, size = 21.sp, weight = FontWeight.SemiBold, maxLines = 2)
                 }
+                Spacer(Modifier.height(12.dp))
+                T(if (state.isFavorite("live:${c.id}")) "Hold OK to remove from favorites" else "Hold OK to add to favorites", size = 15.sp, color = C.muted)
             }
         }
     }
@@ -108,9 +126,10 @@ private val hmFormat = SimpleDateFormat("h:mm a", Locale.US)
 fun hm(ms: Long): String = if (ms <= 0) "" else hmFormat.format(Date(ms))
 
 @Composable
-fun ListRow(selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+fun ListRow(selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
     Surface(
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier.fillMaxWidth(),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(

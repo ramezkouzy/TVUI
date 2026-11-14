@@ -103,28 +103,17 @@ fun AppState.moviePlayRequest(m: Movie, info: MovieInfo? = null): PlayRequest {
 fun MoviesTab(state: AppState) {
     val movies = state.movies
     val recent = remember(movies) { movies.sortedByDescending { it.added }.take(40) }
-    val featured = recent.firstOrNull { it.poster.isNotBlank() } ?: recent.firstOrNull()
     val rows = remember(movies, state.movieCategories) {
         val byCat = movies.groupBy { it.categoryId }
         state.movieCategories.mapNotNull { c -> byCat[c.id]?.takeIf { it.isNotEmpty() }?.let { c to it } }
     }
     val resume = remember(state.resumeVersion) { state.prefs.resumeList() }
     val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(featured?.id) { firstFocus.tryFocus() }
+    LaunchedEffect(Unit) { firstFocus.tryFocus() }
 
     if (movies.isEmpty()) { Message("No movies yet", "Your provider didn't return any movies."); return }
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(36.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
-        if (featured != null) item(key = "hero") {
-            Hero(
-                title = featured.name,
-                label = "Recently added",
-                image = featured.poster,
-                onPlay = { state.push(Screen.Player(state.moviePlayRequest(featured))) },
-                onDetails = { state.push(Screen.MovieDetail(featured)) },
-                playFocus = firstFocus,
-            )
-        }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(36.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)) {
         if (resume.isNotEmpty()) item(key = "continue") {
             Column {
                 RowTitle("Continue watching")
@@ -142,7 +131,7 @@ fun MoviesTab(state: AppState) {
             }
         }
         item(key = "recent") {
-            PosterRow("Recently added", recent) { state.push(Screen.MovieDetail(it)) }
+            PosterRow("Recently added", recent, firstFocus = firstFocus) { state.push(Screen.MovieDetail(it)) }
         }
         rows.forEach { (cat, list) ->
             item(key = "cat:${cat.id}") {
@@ -153,12 +142,14 @@ fun MoviesTab(state: AppState) {
 }
 
 @Composable
-fun PosterRow(title: String, movies: List<Movie>, onClick: (Movie) -> Unit) {
+fun PosterRow(title: String, movies: List<Movie>, firstFocus: FocusRequester? = null, onClick: (Movie) -> Unit) {
     Column {
         RowTitle(title)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
-            items(movies, key = { it.id }) { m ->
-                MediaCard(image = m.poster, title = m.name, width = 168.dp, height = 252.dp, onClick = { onClick(m) })
+            items(movies.size, key = { movies[it].id }) { i ->
+                val m = movies[i]
+                MediaCard(image = m.poster, title = m.name, width = 200.dp, height = 300.dp, onClick = { onClick(m) },
+                    focusRequester = if (i == 0) firstFocus else null)
             }
         }
     }

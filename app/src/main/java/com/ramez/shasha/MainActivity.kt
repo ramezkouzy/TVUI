@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import com.ramez.shasha.ui.*
 
 class MainActivity : ComponentActivity() {
@@ -19,10 +21,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         state = AppState(applicationContext)
+        // TVs report a "density" that makes a 1080p screen only 960 units wide, which
+        // doubled every size. Lay out on a fixed 1920-wide canvas instead, so the app
+        // looks the same on 720p, 1080p and 4K screens.
+        val metrics = resources.displayMetrics
+        val canvasDensity = maxOf(metrics.widthPixels, metrics.heightPixels) / 1920f
         setContent {
-            ShashaTheme {
-                Box(Modifier.fillMaxSize().background(C.bg)) {
-                    App(state, onExit = { finish() })
+            CompositionLocalProvider(LocalDensity provides Density(canvasDensity, fontScale = 1f)) {
+                ShashaTheme {
+                    Box(Modifier.fillMaxSize().background(C.bg)) {
+                        App(state, onExit = { finish() })
+                    }
                 }
             }
         }

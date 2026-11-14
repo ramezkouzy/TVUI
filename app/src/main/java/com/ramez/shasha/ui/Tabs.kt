@@ -81,14 +81,11 @@ fun LiveTab(state: AppState) {
                 }
             }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Column(Modifier.weight(1f).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val c = focused ?: shown.firstOrNull()
-            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(22.dp)).background(C.placeholder), contentAlignment = Alignment.Center) {
-                if (c != null && c.icon.isNotBlank()) AsyncImage(model = c.icon, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize(0.45f))
-                Row(Modifier.align(Alignment.BottomStart).padding(18.dp).background(C.bg, RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.size(9.dp).background(Color(0xFFF87171), RoundedCornerShape(50)))
-                    T("LIVE", size = 14.sp, weight = FontWeight.Bold)
+            if (c != null && c.icon.isNotBlank()) {
+                Box(Modifier.size(160.dp, 100.dp).clip(RoundedCornerShape(16.dp)).background(C.surface), contentAlignment = Alignment.Center) {
+                    AsyncImage(model = c.icon, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(14.dp))
                 }
             }
             if (c != null) {
@@ -180,22 +177,23 @@ fun SettingsTab(state: AppState) {
             T("Subtitles come from OpenSubtitles.com. Make a free account there, then go to your profile → API consumers → create one, and paste the API key here (easiest from your phone with the Fire TV app's keyboard). Adding your username and password raises the daily download limit.",
                 size = 17.sp, color = C.muted, lineHeight = 26.sp)
         }
-        item { InputField("OpenSubtitles API key", key, { key = it }) }
-        item { InputField("OpenSubtitles username (optional)", user, { user = it }) }
-        item { InputField("OpenSubtitles password (optional)", pass, { pass = it }, password = true) }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                AppButton("Save", primary = true, onClick = {
-                    p.osApiKey = key; p.osUser = user; p.osPass = pass; p.osToken = ""
-                    status = "Saved."
-                    if (user.isNotBlank() && pass.isNotBlank()) scope.launch {
-                        status = try {
-                            if (state.openSubtitles.login()) "Saved and signed in to OpenSubtitles." else "Saved."
-                        } catch (e: Exception) { "Saved, but sign-in failed: ${e.message}" }
-                    }
-                })
-                if (status != null) T(status!!, size = 17.sp, color = C.accent)
-            }
+            InputField("OpenSubtitles API key (saves automatically)", key, {
+                key = it; p.osApiKey = it; status = if (it.isBlank()) null else "API key saved."
+            })
+        }
+        if (status != null) item { T(status!!, size = 17.sp, color = C.accent) }
+        item { InputField("OpenSubtitles username (optional, raises the daily limit)", user, { user = it; p.osUser = it; p.osToken = "" }) }
+        item { InputField("OpenSubtitles password (optional)", pass, { pass = it; p.osPass = it; p.osToken = "" }, password = true) }
+        if (user.isNotBlank() && pass.isNotBlank()) item {
+            AppButton("Sign in to OpenSubtitles", onClick = {
+                status = "Signing in…"
+                scope.launch {
+                    status = try {
+                        if (state.openSubtitles.login()) "Signed in to OpenSubtitles." else "Sign-in failed."
+                    } catch (e: Exception) { "Sign-in failed: ${e.message}" }
+                }
+            })
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

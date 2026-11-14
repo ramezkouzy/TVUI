@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -204,11 +205,18 @@ fun InputField(
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     var focused by remember { mutableStateOf(false) }
+    // The text box only takes focus while typing, so the remote moves between
+    // fields (and on to buttons) in one press instead of stopping twice.
+    var editing by remember { mutableStateOf(false) }
+    val inner = remember { FocusRequester() }
+    LaunchedEffect(editing) {
+        if (editing) { inner.tryFocus(); keyboardController?.show() }
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         T(label, size = 16.sp, weight = FontWeight.Medium, color = C.muted)
         Surface(
-            onClick = { focusRequester.tryFocus(); keyboardController?.show() },
-            modifier = Modifier.fillMaxWidth(),
+            onClick = { editing = true },
+            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             colors = ClickableSurfaceDefaults.colors(containerColor = C.surface2, focusedContainerColor = C.surface2),
             border = ClickableSurfaceDefaults.border(
@@ -225,12 +233,13 @@ fun InputField(
                 cursorBrush = SolidColor(C.text),
                 visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(keyboardType = if (password) KeyboardType.Password else keyboard, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide(); onDone() }),
+                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide(); editing = false; focusRequester.tryFocus(); onDone() }),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 14.dp)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focused = it.isFocused },
+                    .focusRequester(inner)
+                    .focusProperties { canFocus = editing }
+                    .onFocusChanged { focused = it.isFocused; if (!it.isFocused && editing) editing = false },
             )
         }
     }

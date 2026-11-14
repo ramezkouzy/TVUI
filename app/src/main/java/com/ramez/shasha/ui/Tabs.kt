@@ -190,7 +190,24 @@ fun SettingsTab(state: AppState) {
     var auto by remember { mutableStateOf(p.subtitlesOnByDefault) }
     val scope = rememberCoroutineScope()
 
-    LazyColumn(Modifier.width(860.dp), verticalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
+    LazyColumn(Modifier.width(1100.dp), verticalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
+        item { T("Display", size = 28.sp, weight = FontWeight.SemiBold) }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                T("Text size", size = 20.sp, weight = FontWeight.Medium, modifier = Modifier.width(260.dp))
+                com.ramez.shasha.TEXT_SCALE_LABELS.forEachIndexed { i, label ->
+                    Pill(label, state.textScale == i, { state.textScale = i; p.textScale = i })
+                }
+            }
+        }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                T("Movies & series view", size = 20.sp, weight = FontWeight.Medium, modifier = Modifier.width(260.dp))
+                Pill("Folders", state.folderView, { state.folderView = true; p.folderView = true })
+                Pill("Rows", !state.folderView, { state.folderView = false; p.folderView = false })
+            }
+        }
+        item { Spacer(Modifier.height(16.dp)) }
         item { T("English subtitles", size = 28.sp, weight = FontWeight.SemiBold) }
         item {
             T("Subtitles come from OpenSubtitles.com. Make a free account there, then go to your profile → API consumers → create one, and paste the API key here (easiest from your phone with the Fire TV app's keyboard). Adding your username and password raises the daily download limit.",
@@ -214,12 +231,21 @@ fun SettingsTab(state: AppState) {
                 }
             })
         }
+        item { Spacer(Modifier.height(16.dp)); T("Subtitle display", size = 28.sp, weight = FontWeight.SemiBold) }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 T("Subtitle size", size = 20.sp, weight = FontWeight.Medium, modifier = Modifier.width(260.dp))
                 listOf("Small", "Medium", "Large").forEachIndexed { i, label ->
                     Pill(label, size == i, { size = i; p.subtitleSize = i })
                 }
+            }
+        }
+        item {
+            var raised by remember { mutableStateOf(p.subtitleRaised) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                T("Subtitle position", size = 20.sp, weight = FontWeight.Medium, modifier = Modifier.width(260.dp))
+                Pill("Low (under built-in Arabic)", !raised, { raised = false; p.subtitleRaised = false })
+                Pill("Raised", raised, { raised = true; p.subtitleRaised = true })
             }
         }
         item {

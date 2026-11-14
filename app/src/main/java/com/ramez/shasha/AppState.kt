@@ -11,6 +11,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
+val TEXT_SCALES = listOf(1.0f, 1.15f, 1.3f, 1.5f)
+val TEXT_SCALE_LABELS = listOf("Small", "Medium", "Large", "Extra large")
+
 private const val REFRESH_AFTER_MS = 6 * 60 * 60 * 1000L
 
 /** Survives the screen being rebuilt when you leave the app and come back. */
@@ -64,6 +67,17 @@ class AppState(context: Context) {
         favorites = if (key in favorites) favorites - key else favorites + key
         prefs.favorites = favorites
     }
+
+    var textScale by mutableStateOf(prefs.textScale)
+    var folderView by mutableStateOf(prefs.folderView)
+
+    // Folder view memory, so coming back from a movie lands where you left off.
+    var movieFolder by mutableStateOf<String?>(null)
+    var seriesFolder by mutableStateOf<String?>(null)
+    val movieGrid = androidx.compose.foundation.lazy.grid.LazyGridState()
+    val seriesGrid = androidx.compose.foundation.lazy.grid.LazyGridState()
+    var movieGridFocus by mutableStateOf(-1)
+    var seriesGridFocus by mutableStateOf(-1)
 
     /** Bumped whenever resume positions change so rows refresh. */
     var resumeVersion by mutableStateOf(0)

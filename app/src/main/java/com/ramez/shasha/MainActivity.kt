@@ -27,7 +27,8 @@ class MainActivity : ComponentActivity() {
         val metrics = resources.displayMetrics
         val canvasDensity = maxOf(metrics.widthPixels, metrics.heightPixels) / 1920f
         setContent {
-            CompositionLocalProvider(LocalDensity provides Density(canvasDensity, fontScale = 1f)) {
+            val textScale = TEXT_SCALES.getOrElse(state.textScale) { 1.15f }
+            CompositionLocalProvider(LocalDensity provides Density(canvasDensity, fontScale = textScale)) {
                 ShashaTheme {
                     Box(Modifier.fillMaxSize().background(C.bg)) {
                         App(state, onExit = { finish() })

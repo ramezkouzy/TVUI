@@ -44,6 +44,21 @@ class Prefs(context: Context) {
         get() = p.getStringSet("favs", emptySet())?.toSet() ?: emptySet()
         set(v) = p.edit().putStringSet("favs", HashSet(v)).apply()
 
+    /** Index into TEXT_SCALES; 1 (115%) by default. */
+    var textScale: Int
+        get() = p.getInt("text_scale", 1)
+        set(v) = p.edit().putInt("text_scale", v).apply()
+
+    /** Movies & series: folders on the left + grid (true), or carousels (false). */
+    var folderView: Boolean
+        get() = p.getBoolean("folder_view", true)
+        set(v) = p.edit().putBoolean("folder_view", v).apply()
+
+    /** Raised subtitles sit higher; default is low, under built-in subtitles. */
+    var subtitleRaised: Boolean
+        get() = p.getBoolean("sub_raised", false)
+        set(v) = p.edit().putBoolean("sub_raised", v).apply()
+
     /** 0 = small, 1 = medium, 2 = large */
     var subtitleSize: Int
         get() = p.getInt("sub_size", 1)

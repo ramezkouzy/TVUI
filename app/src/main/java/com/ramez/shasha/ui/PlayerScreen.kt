@@ -89,6 +89,8 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
     var source by remember { mutableStateOf<SubSource>(SubSource.Off) }
     var offset by remember { mutableLongStateOf(0L) }
     var sizeIdx by remember { mutableIntStateOf(prefs.subtitleSize) }
+    var raised by remember { mutableStateOf(prefs.subtitleRaised) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
     var results by remember { mutableStateOf<List<SubtitleResult>?>(null) }
     var searching by remember { mutableStateOf(false) }
     var embedded by remember { mutableStateOf<List<EmbeddedTrack>>(emptyList()) }
@@ -303,16 +305,28 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
 
         // Our own subtitle line (for downloaded subtitles; built-in ones draw inside the video view).
         if (active != null) {
-            val fontSize = listOf(30, 40, 52)[sizeIdx.coerceIn(0, 2)]
+            // One line, low on screen, so it stays clear of subtitles burned into the video.
+            // Long lines shrink a little to fit before they're allowed to wrap.
+            val line = active.text.replace(Regex("\\s*\\n\\s*"), " ")
+            val baseDp = listOf(30f, 38f, 48f)[sizeIdx.coerceIn(0, 2)]
+            val maxWidthDp = if (panelOpen) 1180f else 1800f
+            val fitsChars = maxWidthDp / (baseDp * 0.5f)
+            val shrink = if (line.length > fitsChars) (fitsChars / line.length).coerceAtLeast(0.72f) else 1f
+            val fontSize = with(density) { (baseDp * shrink).dp.toSp() }
+            val bottom = when {
+                controlsVisible -> 190.dp
+                raised -> 110.dp
+                else -> 18.dp
+            }
             Box(
                 Modifier.align(Alignment.BottomCenter)
-                    .padding(bottom = if (controlsVisible) 190.dp else 70.dp, end = if (panelOpen) 600.dp else 0.dp)
-                    .widthIn(max = 1300.dp)
-                    .background(Color(0xA6000000), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .padding(bottom = bottom, end = if (panelOpen) 600.dp else 0.dp)
+                    .widthIn(max = maxWidthDp.dp)
+                    .background(Color(0xB3000000), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-                Text(active.text, color = Color.White, fontSize = fontSize.sp, fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center, lineHeight = (fontSize * 1.25).sp)
+                Text(line, color = Color.White, fontSize = fontSize, fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center, maxLines = 2, lineHeight = fontSize * 1.2f)
             }
         }
 
@@ -377,6 +391,8 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
                 defaultQuery = req.searchName,
                 offset = offset,
                 sizeIdx = sizeIdx,
+                raised = raised,
+                onRaised = { raised = it; prefs.subtitleRaised = it },
                 onOff = { useText(false); cues = emptyList(); source = SubSource.Off },
                 onEmbedded = { i -> cues = emptyList(); useText(true, embedded[i].group); source = SubSource.Embedded(i) },
                 onPick = { pickResult(it) },
@@ -406,6 +422,8 @@ private fun SubtitlePanel(
     defaultQuery: String,
     offset: Long,
     sizeIdx: Int,
+    raised: Boolean,
+    onRaised: (Boolean) -> Unit,
     onOff: () -> Unit,
     onEmbedded: (Int) -> Unit,
     onPick: (SubtitleResult) -> Unit,
@@ -470,6 +488,16 @@ private fun SubtitlePanel(
             Row(Modifier.padding(top = 12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 T("Size", size = 20.sp, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 listOf("S", "M", "L").forEachIndexed { i, l -> Pill(l, sizeIdx == i, { onSize(i) }) }
+            }
+        }
+        item {
+            Row(Modifier.padding(top = 12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f)) {
+                    T("Position", size = 20.sp, weight = FontWeight.SemiBold)
+                    T("Low stays under built-in subtitles", size = 15.sp, color = C.muted)
+                }
+                Pill("Low", !raised, { onRaised(false) })
+                Pill("Raised", raised, { onRaised(true) })
             }
         }
     }

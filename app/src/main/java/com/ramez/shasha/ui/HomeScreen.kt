@@ -101,6 +101,7 @@ fun AppState.moviePlayRequest(m: Movie, info: MovieInfo? = null): PlayRequest {
 
 @Composable
 fun MoviesTab(state: AppState) {
+    if (state.folderView && state.movies.isNotEmpty()) { MovieFolders(state); return }
     val movies = state.movies
     val recent = remember(movies) { movies.sortedByDescending { it.added }.take(40) }
     val rows = remember(movies, state.movieCategories) {
@@ -191,6 +192,7 @@ fun Hero(title: String, label: String, image: String, onPlay: () -> Unit, onDeta
 
 @Composable
 fun SeriesTab(state: AppState) {
+    if (state.folderView && state.series.isNotEmpty()) { SeriesFolders(state); return }
     val all = state.series
     val recent = remember(all) { all.sortedByDescending { it.lastModified }.take(40) }
     val rows = remember(all, state.seriesCategories) {

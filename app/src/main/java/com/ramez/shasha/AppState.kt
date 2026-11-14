@@ -6,8 +6,12 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.ramez.shasha.data.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
@@ -101,6 +105,7 @@ class AppState(context: Context) {
     }
 
     fun signOut() {
+        loadJob?.cancel()
         prefs.account = null
         xtream = null
         libraryCache.clearAll()
@@ -112,18 +117,40 @@ class AppState(context: Context) {
      * Shows the saved copy immediately, then refreshes from the provider in the
      * background when the copy is older than a few hours (or when forced).
      */
-    suspend fun loadLibrary(force: Boolean = false) {
+    // Loading runs on the app's own scope, not a screen's, so leaving the app or the
+    // screen being rebuilt can't cut it off halfway and leave it "stuck loading".
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var loadJob: Job? = null
+
+    fun refreshLibrary(force: Boolean = false) {
+        if (loadJob?.isActive == true) {
+            if (!force) return
+            loadJob?.cancel()
+        }
+        loadJob = appScope.launch {
+            try {
+                loadLibrary(force)
+            } finally {
+                loading = false
+                refreshing = false
+            }
+        }
+    }
+
+    private suspend fun loadLibrary(force: Boolean) {
         val x = xtream ?: return
         val account = x.account
-        if (loading || refreshing) return
 
         if (movies.isEmpty() && liveChannels.isEmpty() && series.isEmpty()) {
             loading = true
-            val cached = withContext(Dispatchers.IO) {
-                runCatching { parseAll { action -> libraryCache.read(account, action) } }.getOrNull()
+            try {
+                val cached = withContext(Dispatchers.IO) {
+                    runCatching { parseAll { action -> libraryCache.read(account, action) } }.getOrNull()
+                }
+                if (cached != null) apply(cached)
+            } finally {
+                loading = false
             }
-            if (cached != null) apply(cached)
-            loading = false
         }
 
         val age = System.currentTimeMillis() - libraryCache.updatedAt(account)
@@ -152,7 +179,9 @@ class AppState(context: Context) {
             if (movies.isEmpty() && liveChannels.isEmpty() && series.isEmpty()) {
                 loadError = "Nothing came back from the server. Try again, or check your account in Settings."
             }
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
             if (!hasData) loadError = e.message ?: "Couldn't load your channels"
         } finally {
             loading = false

@@ -45,7 +45,7 @@ fun App(state: AppState, onExit: () -> Unit) {
 
     // Opens from the saved copy instantly; refreshes in the background when it's stale.
     LaunchedEffect(state.xtream) {
-        if (state.xtream != null) state.loadLibrary()
+        if (state.xtream != null) state.refreshLibrary()
     }
 
     BackHandler(enabled = state.stack.size > 1) { state.pop() }

@@ -51,12 +51,17 @@ fun HomeScreen(state: AppState, onExit: () -> Unit) {
             when {
                 state.tab == Tab.Settings -> SettingsTab(state)
                 state.loading && state.movies.isEmpty() && state.liveChannels.isEmpty() ->
-                    Message("Loading your channels and movies…", "Big libraries can take a little while the first time.")
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        Message("Loading your channels and movies…", "Big libraries can take a little while the first time.")
+                        var showRetry by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) { kotlinx.coroutines.delay(15_000); showRetry = true }
+                        if (showRetry) AppButton("Taking too long? Try again", onClick = { state.refreshLibrary(force = true) })
+                    }
                 state.loadError != null && state.movies.isEmpty() && state.liveChannels.isEmpty() ->
                     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         Message("Couldn't load your library", state.loadError ?: "")
                         val scope = rememberCoroutineScope()
-                        AppButton("Try again", onClick = { scope.launch { state.loadLibrary() } }, primary = true)
+                        AppButton("Try again", onClick = { state.refreshLibrary(force = true) }, primary = true)
                     }
                 else -> when (state.tab) {
                     Tab.Movies -> MoviesTab(state)

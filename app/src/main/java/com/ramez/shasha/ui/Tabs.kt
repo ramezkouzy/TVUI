@@ -262,7 +262,7 @@ fun SettingsTab(state: AppState) {
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                AppButton(if (state.refreshing) "Updating…" else "Refresh channels & movies", onClick = { scope.launch { state.loadLibrary(force = true) } })
+                AppButton(if (state.refreshing) "Updating…" else "Refresh channels & movies", onClick = { state.refreshLibrary(force = true) })
                 AppButton("Sign out", onClick = { state.signOut() })
             }
         }

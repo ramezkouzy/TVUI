@@ -152,7 +152,7 @@ fun SeriesDetailScreen(state: AppState, series: Series) {
                     }
                     val eps = i.seasons[season] ?: emptyList()
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 60.dp)) {
-                        items(eps.size, key = { eps[it].id }) { idx ->
+                        items(eps.size, key = { "${eps[it].id}#$it" }) { idx ->
                             val e = eps[idx]
                             val req = PlayRequest(
                                 key = "ep:${e.id}",

@@ -61,7 +61,8 @@ fun FolderBrowser(
 
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(36.dp)) {
         LazyColumn(Modifier.width(320.dp), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 60.dp)) {
-            items(folders, key = { it.id }) { f ->
+            items(folders.size, key = { "${folders[it].id}#$it" }) { fi ->
+                val f = folders[fi]
                 val isSel = f.id == current?.id
                 ListRow(
                     selected = isSel,
@@ -92,7 +93,7 @@ fun FolderBrowser(
                     verticalArrangement = Arrangement.spacedBy(26.dp),
                     contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 10.dp, bottom = 80.dp),
                 ) {
-                    items(entries.size, key = { entries[it].key }) { i ->
+                    items(entries.size, key = { "${entries[it].key}#$it" }) { i ->
                         val e = entries[i]
                         MediaCard(
                             image = e.image, title = e.title, subtitle = e.subtitle, progress = e.progress,

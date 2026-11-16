@@ -129,7 +129,7 @@ fun MoviesTab(state: AppState) {
             Column {
                 RowTitle("Continue watching")
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
-                    items(resume.size, key = { resume[it].key }) { idx ->
+                    items(resume.size, key = { "${resume[it].key}#$it" }) { idx ->
                         val r = resume[idx]
                         val left = ((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)
                         MediaCard(
@@ -152,8 +152,8 @@ fun MoviesTab(state: AppState) {
         item(key = "recent") {
             PosterRow("Recently added", recent, firstFocus = if (resume.isEmpty() && favs.isEmpty()) firstFocus else null) { state.push(Screen.MovieDetail(it)) }
         }
-        rows.forEach { (cat, list) ->
-            item(key = "cat:${cat.id}") {
+        rows.forEachIndexed { ri, (cat, list) ->
+            item(key = "cat:${cat.id}#$ri") {
                 PosterRow(cat.name, list) { state.push(Screen.MovieDetail(it)) }
             }
         }
@@ -165,7 +165,7 @@ fun PosterRow(title: String, movies: List<Movie>, firstFocus: FocusRequester? = 
     Column {
         RowTitle(title)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
-            items(movies.size, key = { movies[it].id }) { i ->
+            items(movies.size, key = { "${movies[it].id}#$it" }) { i ->
                 val m = movies[i]
                 MediaCard(image = m.poster, title = m.name, width = 200.dp, height = 300.dp, onClick = { onClick(m) },
                     focusRequester = if (i == 0) firstFocus else null)
@@ -226,7 +226,7 @@ fun SeriesTab(state: AppState) {
             Column {
                 RowTitle("Continue watching")
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
-                    items(resume.size, key = { resume[it].key }) { idx ->
+                    items(resume.size, key = { "${resume[it].key}#$it" }) { idx ->
                         val r = resume[idx]
                         MediaCard(
                             focusRequester = if (idx == 0) first else null,
@@ -248,8 +248,8 @@ fun SeriesTab(state: AppState) {
         item(key = "recent") {
             SeriesRow("Recently updated", recent, firstFocus = if (favs.isEmpty() && resume.isEmpty()) first else null) { state.push(Screen.SeriesDetail(it)) }
         }
-        rows.forEach { (cat, list) ->
-            item(key = "cat:${cat.id}") { SeriesRow(cat.name, list) { state.push(Screen.SeriesDetail(it)) } }
+        rows.forEachIndexed { ri, (cat, list) ->
+            item(key = "cat:${cat.id}#$ri") { SeriesRow(cat.name, list) { state.push(Screen.SeriesDetail(it)) } }
         }
     }
 }
@@ -259,7 +259,7 @@ fun SeriesRow(title: String, list: List<Series>, firstFocus: FocusRequester? = n
     Column {
         RowTitle(title)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
-            items(list.size, key = { list[it].id }) { i ->
+            items(list.size, key = { "${list[it].id}#$it" }) { i ->
                 val s = list[i]
                 MediaCard(
                     image = s.cover, title = s.name, width = 168.dp, height = 252.dp,

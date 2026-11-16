@@ -173,16 +173,19 @@ class AppState(context: Context) {
         if (hasData) refreshing = true else loading = true
         loadError = null
         try {
-            val fresh = withContext(Dispatchers.IO) {
-                coroutineScope {
-                    Xtream.ALL.map { action -> action to async { runCatching { x.raw(action) }.getOrNull() } }
-                        .associate { (action, job) -> action to job.await() }
-                }
-            }
-            // Only keep lists that actually came back, so a hiccup never wipes the library.
+            // Each list is saved as soon as it arrives (keeps memory low on the Fire Stick).
+            // Only lists that actually came back are kept, so a hiccup never wipes the library.
             withContext(Dispatchers.IO) {
-                fresh.forEach { (action, text) ->
-                    if (text != null && text.trim().startsWith("[") && text.trim().length > 2) libraryCache.write(account, action, text)
+                coroutineScope {
+                    Xtream.ALL.map { action ->
+                        async {
+                            val text = runCatching { x.raw(action) }.getOrNull()
+                            if (text != null) {
+                                val t = text.trimStart()
+                                if (t.startsWith("[") && t.length > 2) libraryCache.write(account, action, text)
+                            }
+                        }
+                    }.forEach { it.await() }
                 }
             }
             val parsed = withContext(Dispatchers.IO) {

@@ -73,14 +73,15 @@ fun LiveTab(state: AppState) {
 
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(36.dp)) {
         LazyColumn(Modifier.width(250.dp), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 60.dp)) {
-            items(cats, key = { "c" + it.id }) { c ->
+            items(cats.size, key = { "c${cats[it].id}#$it" }) { ci ->
+                val c = cats[ci]
                 ListRow(selected = cat == c.id, onClick = { cat = c.id }) {
                     T(c.name, size = 18.sp, weight = if (cat == c.id) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1)
                 }
             }
         }
         LazyColumn(Modifier.width(620.dp), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 60.dp)) {
-            itemsIndexed(shown, key = { _, c -> c.id }) { i, c ->
+            itemsIndexed(shown, key = { i, c -> "${c.id}#$i" }) { i, c ->
                 ListRow(
                     selected = false,
                     onClick = { state.playLive(shown, i) },

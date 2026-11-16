@@ -10,6 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.ramez.shasha.ui.*
@@ -19,6 +24,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLog.install(applicationContext)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         state = AppHolder.state ?: AppState(applicationContext).also { AppHolder.state = it }
         // TVs report a "density" that makes a 1080p screen only 960 units wide, which
@@ -41,6 +47,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun App(state: AppState, onExit: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var crash by remember { mutableStateOf(CrashLog.read(context)) }
+    if (crash != null) {
+        CrashScreen(crash!!) { CrashLog.clear(context); crash = null }
+        return
+    }
     val screen = state.current
 
     // Opens from the saved copy instantly; refreshes in the background when it's stale.
@@ -56,5 +68,20 @@ fun App(state: AppState, onExit: () -> Unit) {
         is Screen.MovieDetail -> key(screen.movie.id) { MovieDetailScreen(state, screen.movie) }
         is Screen.SeriesDetail -> key(screen.series.id) { SeriesDetailScreen(state, screen.series) }
         is Screen.Player -> key(screen.request.key) { PlayerScreen(state, screen.request) }
+    }
+}
+
+@Composable
+private fun CrashScreen(report: String, onDismiss: () -> Unit) {
+    val ok = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { ok.tryFocus() }
+    androidx.compose.foundation.layout.Column(
+        Modifier.fillMaxSize().padding(72.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
+    ) {
+        T("Shasha closed unexpectedly last time", size = 32.sp, weight = FontWeight.Bold)
+        T("Take a photo of this screen and send it to Claude so it can be fixed.", size = 20.sp, color = C.muted)
+        AppButton("OK, continue", onClick = onDismiss, primary = true, modifier = Modifier.focusRequester(ok))
+        T(report.lines().take(22).joinToString("\n"), size = 15.sp, color = C.text2, lineHeight = 21.sp)
     }
 }

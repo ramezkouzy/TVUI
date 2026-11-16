@@ -89,7 +89,7 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
     var source by remember { mutableStateOf<SubSource>(SubSource.Off) }
     var offset by remember { mutableLongStateOf(0L) }
     var sizeIdx by remember { mutableIntStateOf(prefs.subtitleSize) }
-    var raised by remember { mutableStateOf(prefs.subtitleRaised) }
+    var lift by remember { mutableIntStateOf(prefs.subtitleLift) }
     val density = androidx.compose.ui.platform.LocalDensity.current
     var results by remember { mutableStateOf<List<SubtitleResult>?>(null) }
     var searching by remember { mutableStateOf(false) }
@@ -306,10 +306,11 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
         )
 
         // Our own subtitle line (for downloaded subtitles; built-in ones draw inside the video view).
-        if (active != null) {
+        val shownText = active?.text ?: if (panelOpen && cues.isNotEmpty()) "English subtitles will appear here" else null
+        if (shownText != null) {
             // One line, low on screen, so it stays clear of subtitles burned into the video.
             // Long lines shrink a little to fit before they're allowed to wrap.
-            val line = active.text.replace(Regex("\\s*\\n\\s*"), " ")
+            val line = shownText.replace(Regex("\\s*\\n\\s*"), " ")
             val baseDp = listOf(30f, 38f, 48f)[sizeIdx.coerceIn(0, 2)]
             val maxWidthDp = if (panelOpen) 1180f else 1800f
             val fitsChars = maxWidthDp / (baseDp * 0.5f)
@@ -317,8 +318,7 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
             val fontSize = with(density) { (baseDp * shrink).dp.toSp() }
             val bottom = when {
                 controlsVisible -> 190.dp
-                raised -> 110.dp
-                else -> 18.dp
+                else -> (lift * SUB_STEP_DP).dp
             }
             Box(
                 Modifier.align(Alignment.BottomCenter)
@@ -393,8 +393,8 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
                 defaultQuery = req.searchName,
                 offset = offset,
                 sizeIdx = sizeIdx,
-                raised = raised,
-                onRaised = { raised = it; prefs.subtitleRaised = it },
+                lift = lift,
+                onLift = { lift = it.coerceIn(0, SUB_MAX_STEPS); prefs.subtitleLift = lift },
                 onOff = { useText(false); cues = emptyList(); source = SubSource.Off },
                 onEmbedded = { i -> cues = emptyList(); useText(true, embedded[i].group); source = SubSource.Embedded(i) },
                 onPick = { pickResult(it) },
@@ -424,8 +424,8 @@ private fun SubtitlePanel(
     defaultQuery: String,
     offset: Long,
     sizeIdx: Int,
-    raised: Boolean,
-    onRaised: (Boolean) -> Unit,
+    lift: Int,
+    onLift: (Int) -> Unit,
     onOff: () -> Unit,
     onEmbedded: (Int) -> Unit,
     onPick: (SubtitleResult) -> Unit,
@@ -440,6 +440,7 @@ private fun SubtitlePanel(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item { T("Subtitles", size = 32.sp, weight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp)) }
+        item { SubtitleHeightRow(lift, onLift, Modifier.padding(bottom = 14.dp)) }
 
         item {
             OptionRow("Off", "No subtitles", source is SubSource.Off, onOff, Modifier.focusRequester(firstFocus))
@@ -492,16 +493,23 @@ private fun SubtitlePanel(
                 listOf("S", "M", "L").forEachIndexed { i, l -> Pill(l, sizeIdx == i, { onSize(i) }) }
             }
         }
-        item {
-            Row(Modifier.padding(top = 12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Column(Modifier.weight(1f)) {
-                    T("Position", size = 20.sp, weight = FontWeight.SemiBold)
-                    T("Low stays under built-in subtitles", size = 15.sp, color = C.muted)
-                }
-                Pill("Low", !raised, { onRaised(false) })
-                Pill("Raised", raised, { onRaised(true) })
-            }
+    }
+}
+
+const val SUB_STEP_DP = 15
+const val SUB_MAX_STEPS = 30
+
+/** Lower / Higher buttons that move English subtitles live while the video plays. */
+@Composable
+fun SubtitleHeightRow(lift: Int, onLift: (Int) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.weight(1f)) {
+            T("Height", size = 20.sp, weight = FontWeight.SemiBold)
+            T("Moves the English line up or down", size = 15.sp, color = C.muted)
         }
+        AppButton("Lower", onClick = { onLift(lift - 1) }, enabled = lift > 0)
+        T("$lift", size = 20.sp, weight = FontWeight.SemiBold, modifier = Modifier.width(48.dp))
+        AppButton("Higher", onClick = { onLift(lift + 1) }, enabled = lift < SUB_MAX_STEPS)
     }
 }
 

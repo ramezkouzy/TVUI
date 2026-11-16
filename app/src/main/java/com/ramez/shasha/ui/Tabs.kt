@@ -251,12 +251,8 @@ fun SettingsTab(state: AppState) {
             }
         }
         item {
-            var raised by remember { mutableStateOf(p.subtitleRaised) }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                T("Subtitle position", size = 20.sp, weight = FontWeight.Medium, modifier = Modifier.width(260.dp))
-                Pill("Low (under built-in Arabic)", !raised, { raised = false; p.subtitleRaised = false })
-                Pill("Raised", raised, { raised = true; p.subtitleRaised = true })
-            }
+            var lift by remember { mutableStateOf(p.subtitleLift) }
+            SubtitleHeightRow(lift, { lift = it.coerceIn(0, SUB_MAX_STEPS); p.subtitleLift = lift }, Modifier.width(860.dp))
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

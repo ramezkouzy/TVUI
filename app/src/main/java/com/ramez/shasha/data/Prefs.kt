@@ -54,10 +54,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("folder_view", true)
         set(v) = p.edit().putBoolean("folder_view", v).apply()
 
-    /** Raised subtitles sit higher; default is low, under built-in subtitles. */
-    var subtitleRaised: Boolean
-        get() = p.getBoolean("sub_raised", false)
-        set(v) = p.edit().putBoolean("sub_raised", v).apply()
+    /** How far above the bottom edge English subtitles sit, in steps of SUB_STEP_DP. */
+    var subtitleLift: Int
+        get() = if (p.contains("sub_lift")) p.getInt("sub_lift", 4)
+                else if (p.getBoolean("sub_raised", false)) 7 else 4
+        set(v) = p.edit().putInt("sub_lift", v).apply()
 
     /** 0 = small, 1 = medium, 2 = large */
     var subtitleSize: Int

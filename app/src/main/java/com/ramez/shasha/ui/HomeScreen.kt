@@ -128,7 +128,7 @@ fun MoviesTab(state: AppState) {
         if (resume.isNotEmpty()) item(key = "continue") {
             Column {
                 RowTitle("Continue watching")
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(vertical = 20.dp, horizontal = 20.dp)) {
                     items(resume.size, key = { "${resume[it].key}#$it" }) { idx ->
                         val r = resume[idx]
                         val left = ((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)
@@ -136,7 +136,7 @@ fun MoviesTab(state: AppState) {
                             focusRequester = if (idx == 0) firstFocus else null,
                             image = r.image, title = r.title, width = 300.dp, height = 169.dp,
                             progress = if (r.durationMs > 0) r.positionMs.toFloat() / r.durationMs else null,
-                            subtitle = "$left min left",
+                            subtitle = if (r.durationMs <= 0) "Up next" else "$left min left",
                             onClick = { state.push(Screen.Player(r.request)) },
                         )
                     }
@@ -164,7 +164,7 @@ fun MoviesTab(state: AppState) {
 fun PosterRow(title: String, movies: List<Movie>, firstFocus: FocusRequester? = null, onClick: (Movie) -> Unit) {
     Column {
         RowTitle(title)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 20.dp, horizontal = 20.dp)) {
             items(movies.size, key = { "${movies[it].id}#$it" }) { i ->
                 val m = movies[i]
                 MediaCard(image = m.poster, title = m.name, width = 200.dp, height = 300.dp, onClick = { onClick(m) },
@@ -225,14 +225,14 @@ fun SeriesTab(state: AppState) {
         if (resume.isNotEmpty()) item(key = "continue") {
             Column {
                 RowTitle("Continue watching")
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(vertical = 20.dp, horizontal = 20.dp)) {
                     items(resume.size, key = { "${resume[it].key}#$it" }) { idx ->
                         val r = resume[idx]
                         MediaCard(
                             focusRequester = if (idx == 0) first else null,
                             image = r.image, title = r.title, width = 300.dp, height = 169.dp,
                             progress = if (r.durationMs > 0) r.positionMs.toFloat() / r.durationMs else null,
-                            subtitle = "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left",
+                            subtitle = (if (r.durationMs <= 0) "Up next" else "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left"),
                             onClick = { state.push(Screen.Player(r.request)) },
                         )
                     }
@@ -258,7 +258,7 @@ fun SeriesTab(state: AppState) {
 fun SeriesRow(title: String, list: List<Series>, firstFocus: FocusRequester? = null, onClick: (Series) -> Unit) {
     Column {
         RowTitle(title)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 20.dp, horizontal = 20.dp)) {
             items(list.size, key = { "${list[it].id}#$it" }) { i ->
                 val s = list[i]
                 MediaCard(

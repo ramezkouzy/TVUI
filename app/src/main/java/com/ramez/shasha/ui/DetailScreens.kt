@@ -154,30 +154,20 @@ fun SeriesDetailScreen(state: AppState, series: Series) {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 60.dp)) {
                         items(eps.size, key = { "${eps[it].id}#$it" }) { idx ->
                             val e = eps[idx]
-                            val req = PlayRequest(
-                                key = "ep:${e.id}",
-                                url = state.xtream!!.episodeUrl(e),
-                                title = "${series.name} · S${e.season} E${e.number}",
-                                isLive = false,
-                                image = e.image.ifBlank { series.cover },
-                                tmdbId = i.tmdbId,
-                                searchName = TitleCleaner.clean(series.name),
-                                year = i.year,
-                                season = e.season,
-                                episode = e.number,
-                                seriesId = series.id,
-                            )
+                            val req = state.episodeRequest(series, i, e)
                             val r = state.prefs.resumeFor(req.key)
                             ListRow(
                                 selected = false,
-                                onClick = { state.push(Screen.Player(req)) },
+                                onClick = { state.episodeQueue = state.episodeRequests(series, i); state.push(Screen.Player(req)) },
                                 modifier = if (idx == 0) Modifier.focusRequester(firstFocus) else Modifier,
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                                     T("${e.number}", size = 20.sp, weight = FontWeight.SemiBold, modifier = Modifier.width(40.dp))
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         T(e.title.ifBlank { "Episode ${e.number}" }, size = 19.sp, weight = FontWeight.Medium, maxLines = 1)
-                                        if (r != null && r.durationMs > 0) {
+                                        if (r != null && r.durationMs <= 0) {
+                                            T("Up next", size = 15.sp, color = C.accent)
+                                        } else if (r != null) {
                                             T("${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left", size = 15.sp, color = C.accent)
                                         }
                                     }

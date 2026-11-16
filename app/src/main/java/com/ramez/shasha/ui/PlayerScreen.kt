@@ -97,6 +97,11 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
     var toast by remember { mutableStateOf<String?>(null) }
     var toastAt by remember { mutableLongStateOf(0L) }
 
+    var ended by remember { mutableStateOf(false) }
+    var nextUp by remember { mutableStateOf<PlayRequest?>(null) }
+    var countdown by remember { mutableIntStateOf(-1) }
+    val playNowFocus = remember { FocusRequester() }
+
     var controlsAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var controlsVisible by remember { mutableStateOf(true) }
     var panelOpen by remember { mutableStateOf(false) }
@@ -110,7 +115,12 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
         if (req.isLive) return
         val d = player.duration
         if (d <= 0) return
-        prefs.saveResume(ResumeEntry(req.key, req.title, req.image, player.currentPosition, d, System.currentTimeMillis(), req))
+        val pos = player.currentPosition
+        prefs.saveResume(ResumeEntry(req.key, req.title, req.image, pos, d, System.currentTimeMillis(), req))
+        val next = nextUp
+        if (next != null && pos > d * 0.93) {
+            prefs.saveResume(ResumeEntry(next.key, next.title, next.image, 0, 0, System.currentTimeMillis(), next), upNext = true)
+        }
         state.resumeVersion++
     }
 
@@ -175,7 +185,31 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
         player.play()
     }
 
-    LaunchedEffect(req.key) { state.recordRecent(req) }
+    LaunchedEffect(req.key) {
+        state.recordRecent(req)
+        ended = false; countdown = -1; nextUp = null
+        if (!req.isLive) nextUp = state.nextEpisode(req)
+    }
+
+    fun playNext() {
+        val next = nextUp ?: return
+        saveResume()
+        countdown = -1
+        ended = false
+        req = next
+        showControls()
+    }
+
+    // End of an episode: 10-second countdown, then the next one. End of a movie: back out.
+    LaunchedEffect(ended) {
+        if (!ended) return@LaunchedEffect
+        saveResume()
+        if (nextUp == null) { state.pop(); return@LaunchedEffect }
+        countdown = 10
+        delay(80); playNowFocus.tryFocus()
+        while (countdown > 0) { delay(1000); if (countdown > 0) countdown-- }
+        if (countdown == 0) playNext()
+    }
 
     // Subtitles: use a saved file, else search and pick the best match automatically.
     LaunchedEffect(req.key) {
@@ -200,7 +234,10 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(s: Int) { buffering = s == Player.STATE_BUFFERING }
+            override fun onPlaybackStateChanged(s: Int) {
+                buffering = s == Player.STATE_BUFFERING
+                if (s == Player.STATE_ENDED && !req.isLive) ended = true
+            }
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
             override fun onTracksChanged(tracks: Tracks) {
                 embedded = tracks.groups.filter { it.type == MC.TRACK_TYPE_TEXT && it.length > 0 }.map { g ->
@@ -260,6 +297,7 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
     BackHandler(enabled = panelOpen) { panelOpen = false }
     // Back with the progress bar showing just hides it; a second Back leaves the video.
     BackHandler(enabled = controlsVisible && !panelOpen) { controlsVisible = false }
+    BackHandler(enabled = countdown >= 0) { countdown = -1; rootFocus.tryFocus(); showControls() }
 
     val active = remember(position, cues, offset) {
         val t = position - offset
@@ -271,7 +309,7 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
             .focusRequester(rootFocus)
             .focusable()
             .onKeyEvent { ev ->
-                if (ev.type != KeyEventType.KeyDown || panelOpen) return@onKeyEvent false
+                if (ev.type != KeyEventType.KeyDown || panelOpen || countdown >= 0) return@onKeyEvent false
                 when (ev.key) {
                     Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.MediaPlayPause, Key.Spacebar -> {
                         if (player.isPlaying) player.pause() else player.play(); showControls(); true
@@ -373,6 +411,23 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
                         T("LIVE", size = 16.sp, weight = FontWeight.Bold)
                         if (!playing) T("· Paused", size = 16.sp, color = C.muted)
                     }
+                }
+            }
+        }
+
+        val next = nextUp
+        if (countdown >= 0 && next != null) {
+            Column(
+                Modifier.align(Alignment.BottomEnd).padding(56.dp).width(560.dp)
+                    .background(C.surface, RoundedCornerShape(22.dp)).padding(30.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                T("UP NEXT", size = 15.sp, weight = FontWeight.SemiBold, color = C.muted)
+                T(next.title, size = 24.sp, weight = FontWeight.Bold, maxLines = 2)
+                T("Starts in $countdown s", size = 18.sp, color = C.text2)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    AppButton("Play now", onClick = { playNext() }, primary = true, modifier = Modifier.focusRequester(playNowFocus))
+                    AppButton("Cancel", onClick = { countdown = -1; rootFocus.tryFocus(); showControls() })
                 }
             }
         }

@@ -176,7 +176,7 @@ fun SearchTab(state: AppState) {
         if (live.isNotEmpty()) item {
             Column {
                 RowTitle("Live channels")
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 20.dp, horizontal = 20.dp)) {
                     items(live.size) { i ->
                         val c = live[i]
                         MediaCard(image = c.icon, title = c.name, width = 220.dp, height = 124.dp, onClick = { state.playLive(live, i) })

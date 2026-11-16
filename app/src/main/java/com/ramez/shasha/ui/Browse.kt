@@ -91,7 +91,7 @@ fun FolderBrowser(
                     state = grid,
                     horizontalArrangement = Arrangement.spacedBy(26.dp),
                     verticalArrangement = Arrangement.spacedBy(26.dp),
-                    contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 10.dp, bottom = 80.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 24.dp, top = 22.dp, bottom = 80.dp),
                 ) {
                     items(entries.size, key = { "${entries[it].key}#$it" }) { i ->
                         val e = entries[i]
@@ -126,7 +126,7 @@ fun MovieFolders(state: AppState) {
         buildList {
             if (resume.isNotEmpty()) add(Folder("continue", "Continue watching", resume.size) {
                 resume.map { r ->
-                    GridEntry(r.key, r.title, r.image, "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left",
+                    GridEntry(r.key, r.title, r.image, (if (r.durationMs <= 0) "Up next" else "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left"),
                         if (r.durationMs > 0) r.positionMs.toFloat() / r.durationMs else null) { state.push(Screen.Player(r.request)) }
                 }
             })
@@ -142,7 +142,7 @@ fun MovieFolders(state: AppState) {
     }
     FolderBrowser(
         folders = folders,
-        selected = state.movieFolder ?: folders.firstOrNull { it.id == "recent" }?.id,
+        selected = state.movieFolder ?: (if (resume.isNotEmpty()) "continue" else "recent"),
         onSelect = { state.movieFolder = it },
         grid = state.movieGrid,
         focusIndex = state.movieGridFocus,
@@ -166,7 +166,7 @@ fun SeriesFolders(state: AppState) {
         buildList {
             if (resume.isNotEmpty()) add(Folder("continue", "Continue watching", resume.size) {
                 resume.map { r ->
-                    GridEntry(r.key, r.title, r.image, "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left",
+                    GridEntry(r.key, r.title, r.image, (if (r.durationMs <= 0) "Up next" else "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left"),
                         if (r.durationMs > 0) r.positionMs.toFloat() / r.durationMs else null) { state.push(Screen.Player(r.request)) }
                 }
             })
@@ -182,7 +182,7 @@ fun SeriesFolders(state: AppState) {
     }
     FolderBrowser(
         folders = folders,
-        selected = state.seriesFolder ?: "recent",
+        selected = state.seriesFolder ?: (if (resume.isNotEmpty()) "continue" else "recent"),
         onSelect = { state.seriesFolder = it },
         grid = state.seriesGrid,
         focusIndex = state.seriesGridFocus,

@@ -78,10 +78,11 @@ class Prefs(context: Context) {
 
     fun resumeFor(key: String): ResumeEntry? = resumeList().firstOrNull { it.key == key }
 
-    fun saveResume(entry: ResumeEntry) {
+    /** upNext = the next episode after one you finished; kept even at 0:00. */
+    fun saveResume(entry: ResumeEntry, upNext: Boolean = false) {
         val list = resumeList().filter { it.key != entry.key }.toMutableList()
         val nearlyDone = entry.durationMs > 0 && entry.positionMs > entry.durationMs * 0.93
-        if (!nearlyDone && entry.positionMs > 60_000) list.add(0, entry)
+        if (!nearlyDone && (entry.positionMs > 60_000 || upNext)) list.add(0, entry)
         val arr = JSONArray()
         list.take(30).forEach { arr.put(toJson(it)) }
         p.edit().putString("resume", arr.toString()).apply()

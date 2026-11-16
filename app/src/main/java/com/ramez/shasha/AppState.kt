@@ -85,6 +85,40 @@ class AppState(context: Context) {
         recents = prefs.addRecent(key)
     }
 
+    /** Every episode of the show being watched, in order, for "Up next". */
+    var episodeQueue by mutableStateOf<List<PlayRequest>>(emptyList())
+
+    fun episodeRequest(series: Series, info: SeriesInfo, e: Episode): PlayRequest = PlayRequest(
+        key = "ep:${e.id}",
+        url = xtream!!.episodeUrl(e),
+        title = "${series.name} · S${e.season} E${e.number}",
+        isLive = false,
+        image = e.image.ifBlank { series.cover },
+        tmdbId = info.tmdbId,
+        searchName = TitleCleaner.clean(series.name),
+        year = info.year,
+        season = e.season,
+        episode = e.number,
+        seriesId = series.id,
+    )
+
+    fun episodeRequests(series: Series, info: SeriesInfo): List<PlayRequest> =
+        info.seasons.toSortedMap().values.flatten().map { episodeRequest(series, info, it) }
+
+    /** The episode after this one, loading the show's episode list if needed. */
+    suspend fun nextEpisode(req: PlayRequest): PlayRequest? {
+        if (!req.key.startsWith("ep:")) return null
+        var q = episodeQueue
+        if (q.none { it.key == req.key }) {
+            val s = series.firstOrNull { it.id == req.seriesId } ?: return null
+            val info = runCatching { xtream?.seriesInfo(s) }.getOrNull() ?: return null
+            q = episodeRequests(s, info)
+            episodeQueue = q
+        }
+        val i = q.indexOfFirst { it.key == req.key }
+        return if (i >= 0) q.getOrNull(i + 1) else null
+    }
+
     var textScale by mutableStateOf(prefs.textScale)
     var folderView by mutableStateOf(prefs.folderView)
 

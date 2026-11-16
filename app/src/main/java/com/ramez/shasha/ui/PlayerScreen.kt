@@ -258,6 +258,8 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
     }
 
     BackHandler(enabled = panelOpen) { panelOpen = false }
+    // Back with the progress bar showing just hides it; a second Back leaves the video.
+    BackHandler(enabled = controlsVisible && !panelOpen) { controlsVisible = false }
 
     val active = remember(position, cues, offset) {
         val t = position - offset

@@ -165,6 +165,7 @@ fun SeriesDetailScreen(state: AppState, series: Series) {
                                 year = i.year,
                                 season = e.season,
                                 episode = e.number,
+                                seriesId = series.id,
                             )
                             val r = state.prefs.resumeFor(req.key)
                             ListRow(

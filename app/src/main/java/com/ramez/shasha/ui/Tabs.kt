@@ -36,6 +36,7 @@ import java.util.Locale
 // ---------------- Live TV ----------------
 
 private const val FAV = "__favorites__"
+private const val RECENT = "__recent__"
 
 @Composable
 fun LiveTab(state: AppState) {
@@ -44,13 +45,17 @@ fun LiveTab(state: AppState) {
 
     val cats = remember(channels, state.liveCategories) {
         val used = channels.map { it.categoryId }.toSet()
-        listOf(Category("", "All"), Category(FAV, "Favorites")) + state.liveCategories.filter { it.id in used }
+        listOf(Category("", "All"), Category(FAV, "Favorites"), Category(RECENT, "Recently watched")) + state.liveCategories.filter { it.id in used }
     }
     var cat by remember { mutableStateOf("") }
-    val shown = remember(cat, channels, state.favorites) {
+    val shown = remember(cat, channels, state.favorites, if (cat == RECENT) state.recents else null) {
         when (cat) {
             "" -> channels
             FAV -> channels.filter { state.isFavorite("live:${it.id}") }
+            RECENT -> {
+                val byId = channels.associateBy { it.id }
+                state.recents.filter { it.startsWith("live:") }.mapNotNull { byId[it.removePrefix("live:").toIntOrNull()] }
+            }
             else -> channels.filter { it.categoryId == cat }
         }
     }
@@ -96,6 +101,10 @@ fun LiveTab(state: AppState) {
         Column(Modifier.weight(1f).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             if (cat == FAV && shown.isEmpty()) {
                 Message("No favorite channels yet", "Highlight a channel and hold OK to add it here.")
+                return@Column
+            }
+            if (cat == RECENT && shown.isEmpty()) {
+                Message("Nothing watched yet", "Channels you watch will show up here.")
                 return@Column
             }
             val c = focused ?: shown.firstOrNull()

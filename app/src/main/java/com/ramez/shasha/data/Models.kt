@@ -89,6 +89,7 @@ data class PlayRequest(
     val season: Int = 0,
     val episode: Int = 0,
     val channelIndex: Int = -1,
+    val seriesId: Int = 0,
 )
 
 /** A movie or episode the user stopped partway through. */

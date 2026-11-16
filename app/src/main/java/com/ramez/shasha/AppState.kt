@@ -72,6 +72,19 @@ class AppState(context: Context) {
         prefs.favorites = favorites
     }
 
+    var recents by mutableStateOf(prefs.recents())
+        private set
+
+    /** Movies and channels are remembered directly; an episode remembers its show. */
+    fun recordRecent(r: PlayRequest) {
+        val key = when {
+            r.isLive -> r.key
+            r.key.startsWith("ep:") -> if (r.seriesId > 0) "series:${r.seriesId}" else return
+            else -> r.key
+        }
+        recents = prefs.addRecent(key)
+    }
+
     var textScale by mutableStateOf(prefs.textScale)
     var folderView by mutableStateOf(prefs.folderView)
 

@@ -175,6 +175,8 @@ fun PlayerScreen(state: AppState, request: PlayRequest) {
         player.play()
     }
 
+    LaunchedEffect(req.key) { state.recordRecent(req) }
+
     // Subtitles: use a saved file, else search and pick the best match automatically.
     LaunchedEffect(req.key) {
         cues = emptyList(); source = SubSource.Off; results = null

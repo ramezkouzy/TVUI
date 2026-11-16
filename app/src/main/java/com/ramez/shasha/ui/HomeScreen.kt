@@ -113,7 +113,11 @@ fun MoviesTab(state: AppState) {
         val byCat = movies.groupBy { it.categoryId }
         state.movieCategories.mapNotNull { c -> byCat[c.id]?.takeIf { it.isNotEmpty() }?.let { c to it } }
     }
-    val resume = remember(state.resumeVersion) { state.prefs.resumeList() }
+    val resume = remember(state.resumeVersion) { state.prefs.resumeList().filter { it.key.startsWith("movie:") } }
+    val watched = remember(movies, state.recents) {
+        val byId = movies.associateBy { it.id }
+        state.recents.filter { it.startsWith("movie:") }.mapNotNull { byId[it.removePrefix("movie:").toIntOrNull()] }
+    }
     val favs = remember(movies, state.favorites) { movies.filter { state.isFavorite("movie:${it.id}") } }
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { firstFocus.tryFocus() }
@@ -141,6 +145,9 @@ fun MoviesTab(state: AppState) {
         }
         if (favs.isNotEmpty()) item(key = "mylist") {
             PosterRow("My list", favs, firstFocus = if (resume.isEmpty()) firstFocus else null) { state.push(Screen.MovieDetail(it)) }
+        }
+        if (watched.isNotEmpty()) item(key = "watched") {
+            PosterRow("Recently watched", watched) { state.push(Screen.MovieDetail(it)) }
         }
         item(key = "recent") {
             PosterRow("Recently added", recent, firstFocus = if (resume.isEmpty() && favs.isEmpty()) firstFocus else null) { state.push(Screen.MovieDetail(it)) }
@@ -206,15 +213,40 @@ fun SeriesTab(state: AppState) {
     }
     if (all.isEmpty()) { Message("No series yet", "Your provider didn't return any series."); return }
     val favs = remember(all, state.favorites) { all.filter { state.isFavorite("series:${it.id}") } }
+    val resume = remember(state.resumeVersion) { state.prefs.resumeList().filter { it.key.startsWith("ep:") } }
+    val watched = remember(all, state.recents) {
+        val byId = all.associateBy { it.id }
+        state.recents.filter { it.startsWith("series:") }.mapNotNull { byId[it.removePrefix("series:").toIntOrNull()] }
+    }
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.tryFocus() }
 
     LazyColumn(verticalArrangement = Arrangement.spacedBy(36.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
+        if (resume.isNotEmpty()) item(key = "continue") {
+            Column {
+                RowTitle("Continue watching")
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp)) {
+                    items(resume.size, key = { resume[it].key }) { idx ->
+                        val r = resume[idx]
+                        MediaCard(
+                            focusRequester = if (idx == 0) first else null,
+                            image = r.image, title = r.title, width = 300.dp, height = 169.dp,
+                            progress = if (r.durationMs > 0) r.positionMs.toFloat() / r.durationMs else null,
+                            subtitle = "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left",
+                            onClick = { state.push(Screen.Player(r.request)) },
+                        )
+                    }
+                }
+            }
+        }
         if (favs.isNotEmpty()) item(key = "mylist") {
-            SeriesRow("My list", favs, firstFocus = first) { state.push(Screen.SeriesDetail(it)) }
+            SeriesRow("My list", favs, firstFocus = if (resume.isEmpty()) first else null) { state.push(Screen.SeriesDetail(it)) }
+        }
+        if (watched.isNotEmpty()) item(key = "watched") {
+            SeriesRow("Recently watched", watched) { state.push(Screen.SeriesDetail(it)) }
         }
         item(key = "recent") {
-            SeriesRow("Recently updated", recent, firstFocus = if (favs.isEmpty()) first else null) { state.push(Screen.SeriesDetail(it)) }
+            SeriesRow("Recently updated", recent, firstFocus = if (favs.isEmpty() && resume.isEmpty()) first else null) { state.push(Screen.SeriesDetail(it)) }
         }
         rows.forEach { (cat, list) ->
             item(key = "cat:${cat.id}") { SeriesRow(cat.name, list) { state.push(Screen.SeriesDetail(it)) } }

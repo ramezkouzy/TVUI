@@ -92,6 +92,17 @@ class Prefs(context: Context) {
         p.edit().putString("resume", arr.toString()).apply()
     }
 
+    // ---- Recently watched: keys like "movie:12", "series:7", "live:301", newest first ----
+
+    fun recents(): List<String> =
+        (p.getString("recents", "") ?: "").split(',').filter { it.isNotBlank() }
+
+    fun addRecent(key: String): List<String> {
+        val list = (listOf(key) + recents().filter { it != key }).take(80)
+        p.edit().putString("recents", list.joinToString(",")).apply()
+        return list
+    }
+
     // ---- Subtitle choice per title (remembers timing offset too) ----
 
     fun subtitleOffset(key: String): Long = p.getLong("off_$key", 0L)
@@ -103,6 +114,7 @@ class Prefs(context: Context) {
         val r = e.request
         put("r_url", r.url); put("r_title", r.title); put("r_img", r.image); put("r_tmdb", r.tmdbId)
         put("r_name", r.searchName); put("r_year", r.year); put("r_s", r.season); put("r_e", r.episode)
+        put("r_sid", r.seriesId)
     }
 
     private fun fromJson(o: JSONObject): ResumeEntry? {
@@ -110,7 +122,7 @@ class Prefs(context: Context) {
         val req = PlayRequest(
             key = key, url = o.s("r_url"), title = o.s("r_title"), isLive = false,
             image = o.s("r_img"), tmdbId = o.s("r_tmdb"), searchName = o.s("r_name"),
-            year = o.s("r_year"), season = o.i("r_s"), episode = o.i("r_e"),
+            year = o.s("r_year"), season = o.i("r_s"), episode = o.i("r_e"), seriesId = o.i("r_sid"),
         )
         return ResumeEntry(key, o.s("title"), o.s("image"), o.l("pos"), o.l("dur"), o.l("at"), req)
     }

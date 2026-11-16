@@ -115,7 +115,11 @@ fun MovieFolders(state: AppState) {
     val movies = state.movies
     val resume = remember(state.resumeVersion) { state.prefs.resumeList().filter { it.key.startsWith("movie:") } }
     val favs = remember(movies, state.favorites) { movies.filter { state.isFavorite("movie:${it.id}") } }
-    val folders = remember(movies, state.movieCategories, resume, favs) {
+    val watched = remember(movies, state.recents) {
+        val byId = movies.associateBy { it.id }
+        state.recents.filter { it.startsWith("movie:") }.mapNotNull { byId[it.removePrefix("movie:").toIntOrNull()] }
+    }
+    val folders = remember(movies, state.movieCategories, resume, favs, watched) {
         val byCat = movies.groupBy { it.categoryId }
         fun entry(m: com.ramez.shasha.data.Movie) = GridEntry("m${m.id}", m.name, m.poster, m.year) { state.push(Screen.MovieDetail(m)) }
         buildList {
@@ -126,6 +130,7 @@ fun MovieFolders(state: AppState) {
                 }
             })
             add(Folder("mylist", "My list", favs.size) { favs.map(::entry) })
+            add(Folder("watched", "Recently watched", watched.size) { watched.map(::entry) })
             add(Folder("recent", "Recently added", minOf(200, movies.size)) { movies.sortedByDescending { it.added }.take(200).map(::entry) })
             add(Folder("all", "All movies · A–Z", movies.size) { movies.sortedBy { it.name.lowercase() }.map(::entry) })
             state.movieCategories.forEach { c ->
@@ -141,7 +146,7 @@ fun MovieFolders(state: AppState) {
         grid = state.movieGrid,
         focusIndex = state.movieGridFocus,
         onFocusIndex = { state.movieGridFocus = it },
-        emptyText = "Nothing here yet. On a movie's page, choose Add to My list.",
+        emptyText = "Nothing here yet.",
     )
 }
 
@@ -149,11 +154,23 @@ fun MovieFolders(state: AppState) {
 fun SeriesFolders(state: AppState) {
     val all = state.series
     val favs = remember(all, state.favorites) { all.filter { state.isFavorite("series:${it.id}") } }
-    val folders = remember(all, state.seriesCategories, favs) {
+    val resume = remember(state.resumeVersion) { state.prefs.resumeList().filter { it.key.startsWith("ep:") } }
+    val watched = remember(all, state.recents) {
+        val byId = all.associateBy { it.id }
+        state.recents.filter { it.startsWith("series:") }.mapNotNull { byId[it.removePrefix("series:").toIntOrNull()] }
+    }
+    val folders = remember(all, state.seriesCategories, favs, resume, watched) {
         val byCat = all.groupBy { it.categoryId }
         fun entry(s: com.ramez.shasha.data.Series) = GridEntry("s${s.id}", s.name, s.cover, s.year) { state.push(Screen.SeriesDetail(s)) }
         buildList {
+            if (resume.isNotEmpty()) add(Folder("continue", "Continue watching", resume.size) {
+                resume.map { r ->
+                    GridEntry(r.key, r.title, r.image, "${((r.durationMs - r.positionMs) / 60000).coerceAtLeast(1)} min left",
+                        if (r.durationMs > 0) r.positionMs.toFloat() / r.durationMs else null) { state.push(Screen.Player(r.request)) }
+                }
+            })
             add(Folder("mylist", "My list", favs.size) { favs.map(::entry) })
+            add(Folder("watched", "Recently watched", watched.size) { watched.map(::entry) })
             add(Folder("recent", "Recently updated", minOf(200, all.size)) { all.sortedByDescending { it.lastModified }.take(200).map(::entry) })
             add(Folder("all", "All series · A–Z", all.size) { all.sortedBy { it.name.lowercase() }.map(::entry) })
             state.seriesCategories.forEach { c ->
@@ -169,6 +186,6 @@ fun SeriesFolders(state: AppState) {
         grid = state.seriesGrid,
         focusIndex = state.seriesGridFocus,
         onFocusIndex = { state.seriesGridFocus = it },
-        emptyText = "Nothing here yet. On a show's page, choose Add to My list.",
+        emptyText = "Nothing here yet.",
     )
 }
